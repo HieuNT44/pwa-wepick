@@ -12,6 +12,7 @@ import {
   getIsMatchActive,
   getTodayMatchHistory,
   setIsMatchActive,
+  clearTodayMatchHistory,
 } from "@/lib/utils/local-storage";
 import { callMitralAI } from "@/lib/utils/mitral-ai";
 import type { Match } from "@/types/match";
@@ -172,6 +173,32 @@ export default function MatchPage() {
     handleAICalculation();
   };
 
+  const handleClearAllMatches = () => {
+    if (
+      !confirm(
+        "Bạn có chắc muốn xóa toàn bộ dữ liệu các trận đấu hôm nay? Hành động này không thể hoàn tác."
+      )
+    ) {
+      return;
+    }
+
+    try {
+      clearTodayMatchHistory();
+      loadMatches();
+      toast({
+        title: "Đã xóa",
+        description: "Đã xóa toàn bộ dữ liệu các trận đấu hôm nay",
+      });
+    } catch (error) {
+      console.error("Error clearing matches:", error);
+      toast({
+        title: "Lỗi",
+        description: "Không thể xóa dữ liệu. Vui lòng thử lại.",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (authLoading) {
     return (
       <div className="h-screen flex items-center justify-center bg-background-light">
@@ -236,9 +263,20 @@ export default function MatchPage() {
             <h1 className="text-text-main text-2xl font-extrabold tracking-tight">
               Trận Đấu Hôm Nay
             </h1>
-            <button className="size-10 flex items-center justify-center rounded-full bg-gray-50 text-gray-600">
-              <span className="material-symbols-outlined">calendar_today</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleClearAllMatches}
+                className="size-10 flex items-center justify-center rounded-full bg-gray-50 text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors"
+                title="Xóa toàn bộ dữ liệu"
+              >
+                <span className="material-symbols-outlined text-lg">
+                  delete_outline
+                </span>
+              </button>
+              <button className="size-10 flex items-center justify-center rounded-full bg-gray-50 text-gray-600">
+                <span className="material-symbols-outlined">calendar_today</span>
+              </button>
+            </div>
           </div>
           <p className="text-primary font-semibold text-sm">{todayFormatted}</p>
         </div>

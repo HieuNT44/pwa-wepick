@@ -1,28 +1,25 @@
 "use client";
 
-import { Navbar } from "@/components/navbar";
-import { InstallButton } from "@/components/install-button";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { useToast } from "@/hooks/use-toast";
-import { usePageView, useAnalytics } from "@/hooks/use-analytics";
-import { FirebaseDemo } from "@/components/firebase-demo";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function Home() {
-  const { toast } = useToast();
-  const { trackEvent } = useAnalytics();
-  
-  // Track page view with Firebase Analytics
-  usePageView("Home");
+  const router = useRouter();
+
+  useEffect(() => {
+    // Auto redirect to login
+    router.push("/login");
+  }, [router]);
+
+  // Show loading while redirecting
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background-light dark:bg-background-dark">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+        <p className="text-text-secondary">Đang chuyển hướng...</p>
+      </div>
+    </div>
+  );
 
   const handleToastDemo = () => {
     toast({
