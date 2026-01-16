@@ -9,10 +9,10 @@ import { useToast } from "@/hooks/use-toast";
 import type { CafeCalculationResult } from "@/lib/utils/cafe-calculation";
 import { formatDateWithWeek } from "@/lib/utils/date";
 import {
+  clearTodayMatchHistory,
   getIsMatchActive,
   getTodayMatchHistory,
   setIsMatchActive,
-  clearTodayMatchHistory,
 } from "@/lib/utils/local-storage";
 import { callMitralAI } from "@/lib/utils/mitral-ai";
 import type { Match } from "@/types/match";
@@ -274,7 +274,9 @@ export default function MatchPage() {
                 </span>
               </button>
               <button className="size-10 flex items-center justify-center rounded-full bg-gray-50 text-gray-600">
-                <span className="material-symbols-outlined">calendar_today</span>
+                <span className="material-symbols-outlined">
+                  calendar_today
+                </span>
               </button>
             </div>
           </div>
@@ -473,7 +475,7 @@ export default function MatchPage() {
             <span className="material-symbols-outlined text-lg">
               auto_awesome
             </span>
-            <span className="text-[10px]">AI Tính toán</span>
+            <span className="text-[10px]">AI Tính toán Cafe</span>
           </Button>
         </div>
       </footer>
