@@ -1,0 +1,98 @@
+[
+  {
+    "id": "01",
+    "name": "Hieu",
+    "email": "nguyenhieuutck57@gmail.com",
+    "nickname": "Hiếu Nguyễn",
+    "role": "admin",
+    "matchHistory": [],
+    "totalWins": 3,
+    "totalLosses": 2,
+    "createdAt": "2024-01-15T10:30:00.000Z",
+    "updatedAt": "2024-01-20T14:45:00.000Z"
+  },
+  {
+    "id": "02",
+    "name": "Thang",
+    "email": "thang.dang@tomosia.com",
+    "nickname": "Thắng Đặng",
+    "role": "user",
+    "matchHistory": [],
+    "totalWins": 1,
+    "totalLosses": 2,
+    "createdAt": "2024-01-16T09:15:00.000Z",
+    "updatedAt": "2024-01-19T16:20:00.000Z"
+  },
+  {
+    "id": "03",
+    "name": "Anh",
+    "email": "anh.luu@tomosia.com",
+    "nickname": "Anh Lưu",
+    "role": "user",
+    "matchHistory": [],
+    "totalWins": 0,
+    "totalLosses": 0,
+    "createdAt": "2024-01-10T08:00:00.000Z",
+    "updatedAt": "2024-01-18T11:30:00.000Z"
+  },
+  {
+    "id": "04",
+    "name": "Tuan",
+    "email": "tuan.phan@tomosia.com",
+    "nickname": "Tuấn Phan",
+    "role": "user",
+    "matchHistory": [],
+    "totalWins": 0,
+    "totalLosses": 0,
+    "createdAt": "2024-01-10T08:00:00.000Z",
+    "updatedAt": "2024-01-18T11:30:00.000Z"
+  },
+  {
+    "id": "05",
+    "name": "Nhat",
+    "email": "nhat.cao@tomosia.com",
+    "nickname": "Nhật Cao",
+    "role": "user",
+    "matchHistory": [],
+    "totalWins": 0,
+    "totalLosses": 0,
+    "createdAt": "2024-01-10T08:00:00.000Z",
+    "updatedAt": "2024-01-18T11:30:00.000Z"
+  },
+  {
+    "id": "06",
+    "name": "Trung",
+    "email": "trung.phan@tomosia.com",
+    "nickname": "Trung Phan",
+    "role": "user",
+    "matchHistory": [],
+    "totalWins": 0,
+    "totalLosses": 0,
+    "createdAt": "2024-01-10T08:00:00.000Z",
+    "updatedAt": "2024-01-18T11:30:00.000Z"
+  },
+  {
+    "id": "07",
+    "name": "Tien",
+    "email": "tien.pham@tomosia.com",
+    "nickname": "Tiến Phạm",
+    "role": "user",
+    "matchHistory": [],
+    "totalWins": 0,
+    "totalLosses": 0,
+    "createdAt": "2024-01-10T08:00:00.000Z",
+    "updatedAt": "2024-01-18T11:30:00.000Z"
+  },
+  {
+    "id": "08",
+    "name": "Phi",
+    "email": "phi.lai@tomosia.com",
+    "nickname": "Phi Lại",
+    "role": "user",
+    "matchHistory": [],
+    "totalWins": 0,
+    "totalLosses": 0,
+    "createdAt": "2024-01-10T08:00:00.000Z",
+    "updatedAt": "2024-01-18T11:30:00.000Z"
+  }
+]

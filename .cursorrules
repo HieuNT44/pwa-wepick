@@ -1,0 +1,28 @@
+# Project Rules
+
+## Code Style
+- Chỉ comment code bằng tiếng Anh
+- Line-height – chỉ dùng giá trị unitless (1, 1.5)
+- Letter-spacing – tránh % hoặc em
+- Không split tên lớp bằng &; Không dùng & để kết hợp lớp
+- Không dùng !important
+- Thẻ <label> chỉ cho thành phần form
+- Mỗi component có lớp ngoài cùng (className) trùng tên file (ví dụ <div className="Header">…</div>)
+- Đồng bộ các giá trị từ MUI sang TailwindCSS
+- Chỉ sử dụng các component của Material UI không dùng các thẻ tag truyền thống của html (ví dụ dùng Box thay vì div)
+- Không được sử dụng any type
+- Ưu tiên sử dụng các thẻ của Material UI
+- Dùng scss ưu tiên hơn css
+- Màu dùng viết hoa ví dụ: #CCCCCC
+- Hãy tìm các file có sẵn trong dự án để fix, thay vì luôn tạo file mới
+
+## Commits
+- Luôn dùng Conventional Commits format
+- Reference file docs/conventional-commits.md
+
+## Storybook
+- Chỉ tạo storybook với case default
+
+## ESLint
+- Check error và warning ở file eslint
+

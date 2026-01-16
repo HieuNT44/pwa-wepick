@@ -1,0 +1,11 @@
+Placeholder for icon-192x192.png and icon-512x512.png
+
+You need to create these icons:
+- icon-192x192.png (192x192 pixels)
+- icon-512x512.png (512x512 pixels)
+
+You can use online tools like:
+- https://realfavicongenerator.net/
+- https://www.pwabuilder.com/imageGenerator
+
+Or create them manually with any image editor.
