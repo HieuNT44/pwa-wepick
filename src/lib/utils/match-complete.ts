@@ -5,9 +5,10 @@
 
 import {
   clearMatchActive,
-  addToMatchHistory,
   type MatchHistoryItem,
 } from "./local-storage";
+import { createMatchFromHistory } from "@/lib/firebase/matches";
+import { updateMultiplePlayerStats } from "@/lib/firebase/players";
 
 export interface CompleteMatchInput {
   matchType: "Đơn" | "Đôi";
@@ -17,7 +18,7 @@ export interface CompleteMatchInput {
   startTime: string; // Format: "hh:mm"
 }
 
-export function completeMatch(matchData: CompleteMatchInput): void {
+export async function completeMatch(matchData: CompleteMatchInput): Promise<void> {
   const today = new Date().toISOString().split("T")[0];
   
   // Parse score to determine winner and loser
@@ -54,8 +55,49 @@ export function completeMatch(matchData: CompleteMatchInput): void {
     player_lose,
   };
 
-  // Add to history
-  addToMatchHistory(matchHistoryItem);
+  // Save to Firestore
+  console.log("💾 Saving match to Firestore:", matchHistoryItem);
+  try {
+    const matchId = await createMatchFromHistory(matchHistoryItem);
+    console.log("✅ Match saved successfully with ID:", matchId);
+  } catch (error) {
+    console.error("❌ Error saving match to Firestore:", error);
+    if (error instanceof Error) {
+      console.error("   Error message:", error.message);
+      console.error("   Error code:", (error as { code?: string }).code);
+    }
+    throw error;
+  }
+
+  // Update player stats (wins/losses)
+  console.log("📊 Updating player stats...");
+  console.log("   Winners:", player_win);
+  console.log("   Losers:", player_lose);
+  try {
+    const statUpdates = [
+      ...player_win.map((name) => ({
+        playerName: name,
+        incrementWins: 1,
+        incrementLosses: 0,
+      })),
+      ...player_lose.map((name) => ({
+        playerName: name,
+        incrementWins: 0,
+        incrementLosses: 1,
+      })),
+    ];
+
+    console.log("   Stat updates:", statUpdates);
+    await updateMultiplePlayerStats(statUpdates);
+    console.log("✅ Player stats updated successfully");
+  } catch (error) {
+    console.error("❌ Error updating player stats:", error);
+    if (error instanceof Error) {
+      console.error("   Error message:", error.message);
+      console.error("   Error code:", (error as { code?: string }).code);
+    }
+    // Don't throw - match is already saved, stats update can fail silently or retry later
+  }
 
   // Clear active match state
   clearMatchActive();

@@ -1,0 +1,19 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow read/write access to players collection (public for development)
+    // TODO: Restrict to authenticated users in production
+    match /players/{document=**} {
+      allow read: if true;
+      allow write: if true;
+    }
+    
+    // Allow read/write access to matches collection (public for development)
+    // TODO: Restrict to authenticated users in production
+    match /matches/{document=**} {
+      allow read: if true;
+      allow write: if true;
+    }
+  }
+}
+

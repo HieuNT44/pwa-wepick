@@ -1,5 +1,6 @@
 "use client";
 
+import { LoginRequiredModal } from "@/components/login-required-modal";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -8,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import usersData from "@/data/users-example.json";
+import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { setIsMatchActive } from "@/lib/utils/local-storage";
 import { completeMatch } from "@/lib/utils/match-complete";
@@ -25,6 +27,7 @@ type Step = 1 | 2 | 3;
 
 export function CreateMatchModal({ open, onClose }: CreateMatchModalProps) {
   const router = useRouter();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [step, setStep] = useState<Step>(1);
   const [matchType, setMatchType] = useState<MatchType>(null);
@@ -34,6 +37,7 @@ export function CreateMatchModal({ open, onClose }: CreateMatchModalProps) {
   const [score2, setScore2] = useState("");
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const [selectingSlot, setSelectingSlot] = useState<{
     team: 1 | 2;
     slot: number;
@@ -125,7 +129,13 @@ export function CreateMatchModal({ open, onClose }: CreateMatchModalProps) {
     }
   };
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
+    // Check auth before completing match
+    if (!user) {
+      setShowLoginModal(true);
+      return;
+    }
+
     if (!matchType || !score1.trim() || !score2.trim()) {
       toast({
         title: "Thiếu thông tin",
@@ -145,13 +155,22 @@ export function CreateMatchModal({ open, onClose }: CreateMatchModalProps) {
       // Format score as "score1-score2"
       const score = `${score1.trim()}-${score2.trim()}`;
 
-      completeMatch({
+      console.log("🎯 Completing match...");
+      console.log("   Match type:", matchType);
+      console.log("   Team 1:", team1);
+      console.log("   Team 2:", team2);
+      console.log("   Score:", score);
+      console.log("   Start time:", startTime);
+
+      await completeMatch({
         matchType,
         team1,
         team2,
         score,
         startTime,
       });
+
+      console.log("✅ Match completed successfully");
 
       toast({
         title: "Thành công",
@@ -162,10 +181,14 @@ export function CreateMatchModal({ open, onClose }: CreateMatchModalProps) {
       onClose();
       router.push("/match");
     } catch (error) {
-      console.error("Error completing match:", error);
+      console.error("❌ Error completing match:", error);
+      if (error instanceof Error) {
+        console.error("   Error message:", error.message);
+        console.error("   Error code:", (error as { code?: string }).code);
+      }
       toast({
         title: "Lỗi",
-        description: "Không thể tạo trận đấu",
+        description: error instanceof Error ? error.message : "Không thể tạo trận đấu",
         variant: "destructive",
       });
     }
@@ -347,7 +370,7 @@ export function CreateMatchModal({ open, onClose }: CreateMatchModalProps) {
         {step === 2 && (
           <div>
             {loading ? (
-              <div className="text-center py-8">
+              <div className="text-center py-8 h-screen">
                 <p className="text-text-secondary">Đang tải danh sách...</p>
               </div>
             ) : (
@@ -738,36 +761,6 @@ export function CreateMatchModal({ open, onClose }: CreateMatchModalProps) {
                 </div>
               </div>
             </div>
-
-            {/* Match Details (Placeholder) */}
-            <div className="mt-12 w-full grid grid-cols-2 gap-4">
-              <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                <p className="text-[10px] font-bold text-text-secondary uppercase mb-1">
-                  Thời gian
-                </p>
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-sm text-primary">
-                    schedule
-                  </span>
-                  <span className="text-sm font-bold text-text-main">
-                    42 phút
-                  </span>
-                </div>
-              </div>
-              <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                <p className="text-[10px] font-bold text-text-secondary uppercase mb-1">
-                  Sân số
-                </p>
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-sm text-primary">
-                    location_on
-                  </span>
-                  <span className="text-sm font-bold text-text-main">
-                    Sân 2
-                  </span>
-                </div>
-              </div>
-            </div>
           </div>
         )}
       </main>
@@ -778,10 +771,10 @@ export function CreateMatchModal({ open, onClose }: CreateMatchModalProps) {
           <Button
             onClick={handleNextStep1}
             disabled={!matchType}
-            className="w-full bg-primary text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-primary/30 active:scale-95 transition-all"
+            className="w-full bg-primary text-white py-4 rounded-2xl font-bold flex items-center justify-center relative px-6 py-3 shadow-lg shadow-primary/30 active:scale-95 transition-all"
           >
             <span>Tiếp theo</span>
-            <span className="material-symbols-outlined text-sm">
+            <span className="material-symbols-outlined text-sm absolute right-6">
               arrow_forward_ios
             </span>
           </Button>
@@ -912,6 +905,12 @@ export function CreateMatchModal({ open, onClose }: CreateMatchModalProps) {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Login Required Modal */}
+      <LoginRequiredModal
+        open={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+      />
     </div>
   );
 }

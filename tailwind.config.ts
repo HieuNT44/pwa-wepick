@@ -76,6 +76,16 @@ const config: Config = {
         soft: "0 4px 20px -2px rgba(0, 0, 0, 0.05)",
         float: "0 10px 25px -5px rgba(70, 186, 193, 0.3)",
       },
+      keyframes: {
+        spin: {
+          "0%": { transform: "rotate(0deg)" },
+          "100%": { transform: "rotate(360deg)" },
+        },
+      },
+      animation: {
+        spin: "spin 1s linear infinite",
+        "spin-slow": "spin 20s linear infinite",
+      },
     },
   },
   plugins: [require("tailwindcss-animate")],

@@ -88,6 +88,15 @@
     display: none;
   }
   
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
   .match-card-gradient {
     background: linear-gradient(135deg, #ffffff 0%, #fdfdfd 100%);
   }
@@ -109,7 +118,7 @@
   }
   
   .bg-background-light {
-    background-color: #FFFFFF;
+    background-color: #F8FAFB;
   }
   
   .bg-card-light {

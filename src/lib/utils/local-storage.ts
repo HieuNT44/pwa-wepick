@@ -19,6 +19,7 @@ export interface MatchHistoryItem {
   startTime: string; // Format: "hh:mm"
   date: string; // Format: "YYYY-MM-DD"
   completedAt: string;
+  createdAt?: string; // ISO string - when match was created in Firestore
   player_win: string[]; // Array of user names who won (from user.name field)
   player_lose: string[]; // Array of user names who lost (from user.name field)
 }
@@ -78,6 +79,41 @@ export const addToMatchHistory = (match: MatchHistoryItem): void => {
 export const clearTodayMatchHistory = (): void => {
   if (typeof window === "undefined") return;
   localStorage.removeItem(STORAGE_KEYS.TODAY_MATCH_HISTORY);
+};
+
+// Delete a specific match by ID
+export const deleteMatchById = (matchId: string): void => {
+  if (typeof window === "undefined") return;
+
+  try {
+    const today = new Date().toISOString().split("T")[0];
+
+    // Get all history from localStorage
+    const stored = localStorage.getItem(STORAGE_KEYS.TODAY_MATCH_HISTORY);
+    if (!stored) return;
+
+    let allHistory: MatchHistoryItem[] = [];
+    try {
+      allHistory = JSON.parse(stored) as MatchHistoryItem[];
+    } catch (parseError) {
+      console.error("Error parsing match history:", parseError);
+      return;
+    }
+
+    // Filter out old matches (not today) and keep only today's matches
+    const todayHistory = allHistory.filter((m) => m.date === today);
+
+    // Remove match by ID
+    const filteredHistory = todayHistory.filter((m) => m.id !== matchId);
+
+    // Save back to localStorage
+    localStorage.setItem(
+      STORAGE_KEYS.TODAY_MATCH_HISTORY,
+      JSON.stringify(filteredHistory)
+    );
+  } catch (error) {
+    console.error("Error deleting match:", error);
+  }
 };
 
 // Match Active State

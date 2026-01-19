@@ -1,5 +1,5 @@
 /**
- * Cafe calculation utilities for AI processing
+ * Cafe calculation utilities - Balance first, then AI optimizes
  */
 
 import type { MatchHistoryItem } from "./local-storage";
@@ -8,92 +8,189 @@ import type { MatchHistoryItem } from "./local-storage";
  * Interface for AI response
  */
 export interface CafeCalculationResult {
-  date: string; // Format: "YYYY-MM-DD"
+  date: string;
   totalSingleMatches: number;
   totalDoubleMatches: number;
   cafeResults: Array<{
-    playerLose: string; // User name (from user.name field)
-    playerWin: string; // User name (from user.name field)
-    amount: number; // Number of coffee cups
+    playerLose: string;
+    playerWin: string;
+    amount: number;
   }>;
 }
 
 /**
- * Generate prompt for AI to calculate cafe results
+ * Calculate player balances from matches
+ * Returns simple object: { playerName: balance }
+ */
+export function calculatePlayerBalances(
+  matches: MatchHistoryItem[]
+): {
+  balances: Record<string, number>;
+  date: string;
+  totalSingleMatches: number;
+  totalDoubleMatches: number;
+} {
+  if (matches.length === 0) {
+    return {
+      balances: {},
+      date: new Date().toISOString().split('T')[0],
+      totalSingleMatches: 0,
+      totalDoubleMatches: 0
+    };
+  }
+
+  const balances: Record<string, number> = {};
+  let totalSingleMatches = 0;
+  let totalDoubleMatches = 0;
+
+  matches.forEach(match => {
+    // Count match types
+    if (match.matchType === "Đơn") {
+      totalSingleMatches++;
+    } else if (match.matchType === "Đôi") {
+      totalDoubleMatches++;
+    }
+
+    // Process wins and losses
+    if (match.matchType === "Đơn") {
+      // Single match
+      const winner = match.player_win[0];
+      const loser = match.player_lose[0];
+
+      balances[winner] = (balances[winner] || 0) + 1;
+      balances[loser] = (balances[loser] || 0) - 1;
+
+    } else if (match.matchType === "Đôi") {
+      // Double match - position based
+      for (let i = 0; i < Math.min(match.player_win.length, match.player_lose.length); i++) {
+        const winner = match.player_win[i];
+        const loser = match.player_lose[i];
+
+        balances[winner] = (balances[winner] || 0) + 1;
+        balances[loser] = (balances[loser] || 0) - 1;
+      }
+    }
+  });
+
+  return {
+    balances,
+    date: matches[0].date,
+    totalSingleMatches,
+    totalDoubleMatches
+  };
+}
+
+/**
+ * Generate AI prompt with simple balance payload
  */
 export function generateCafeCalculationPrompt(
-  matches: MatchHistoryItem[]
+  balances: Record<string, number>,
+  date: string,
+  totalSingleMatches: number,
+  totalDoubleMatches: number
 ): string {
-  const matchesJson = JSON.stringify(matches, null, 2);
+  // Convert to array format: [{name: number}, ...]
+  const balanceArray = Object.entries(balances).map(([name, balance]) => ({
+    [name]: balance
+  }));
 
-  return `Bạn là một hệ thống tính toán cafe cho các trận đấu bóng bàn.
+  const balanceJson = JSON.stringify(balanceArray, null, 2);
 
-Dữ liệu các trận đấu hôm nay:
-${matchesJson}
+  return `Optimize coffee debt settlements between players.
 
-QUY TẮC TÍNH TOÁN:
-1. Trận đơn (matchType: "Đơn"):
-   - Người thua (player_lose) phải trả 1 cốc cafe cho người thắng (player_win)
-   - Mỗi trận đơn tạo ra 1 transaction: player_lose trả 1 cốc cho player_win
+PLAYER BALANCES:
+${balanceJson}
 
-2. Trận đôi (matchType: "Đôi"):
-   - Mỗi người trong đội thua (player_lose) phải trả 1 cốc cafe cho 1 người trong đội thắng (player_win) theo thứ tự
-   - Ví dụ: Đội thua có 2 người [A, B], đội thắng có 2 người [C, D]
-     → A (vị trí 0) trả 1 cốc cho C (vị trí 0)
-     → B (vị trí 1) trả 1 cốc cho D (vị trí 1)
-   - Tổng cộng: 2 người thua × 1 cốc = 2 cốc cafe
+Each number is net balance:
+- Positive: player receives that many coffees
+- Negative: player pays that many coffees
+- Zero: no transaction needed
 
-3. Tính số dư cuối cùng (Net Balance):
-   - Tính tổng số cốc cafe mà mỗi người phải trả cho từng người khác
-   - Tính tổng số cốc cafe mà mỗi người được nhận từ từng người khác
-   - Trừ đi cho nhau để ra số dư cuối cùng giữa mỗi cặp người chơi
-   - Chỉ hiển thị những cặp có số dư khác 0
-   - Ví dụ:
-     * A thắng B 2 trận → B phải trả A 2 cốc
-     * B thắng A 1 trận → A phải trả B 1 cốc
-     * Kết quả cuối: B phải trả A 1 cốc cafe (2 - 1 = 1)
-   - Nếu số dư = 0, không cần hiển thị cặp đó trong "cafeResults"
+TASK: Minimize transactions using greedy matching algorithm.
 
-YÊU CẦU:
-Hãy tính toán và trả về kết quả theo đúng format JSON sau (KHÔNG được thêm bất kỳ text nào khác, chỉ trả về JSON thuần):
+ALGORITHM:
+1. Separate into debtors (negative) and creditors (positive)
+2. Sort debtors by amount (most negative first)
+3. Sort creditors by amount (most positive first)
+4. Match greedily:
+   - Take first debtor + first creditor
+   - Transfer = min(|debtor|, creditor)
+   - Update both, remove if zero
+   - Repeat until settled
 
+EXAMPLE:
+Input: [{"Anh": 7}, {"Hieu": -4}, {"Nhat": 3}, {"Thang": -4}, {"Tuan": -2}]
+
+Debtors: Hieu(-4), Thang(-4), Tuan(-2)
+Creditors: Anh(+7), Nhat(+3)
+
+Matching:
+1. Hieu pays Anh: 4 → Anh: 3 left, Hieu: 0
+2. Thang pays Anh: 3 → Anh: 0, Thang: -1 left  
+3. Thang pays Nhat: 1 → Thang: 0, Nhat: 2 left
+4. Tuan pays Nhat: 2 → Tuan: 0, Nhat: 0
+
+Output:
+[
+  {"playerLose": "Hieu", "playerWin": "Anh", "amount": 4},
+  {"playerLose": "Thang", "playerWin": "Anh", "amount": 3},
+  {"playerLose": "Thang", "playerWin": "Nhat", "amount": 1},
+  {"playerLose": "Tuan", "playerWin": "Nhat", "amount": 2}
+]
+
+RULES:
+- Skip players with balance = 0
+- Sort output by playerLose, then playerWin (alphabetically)
+- Sum of all balances must = 0
+- All balances must = 0 after settlements
+
+OUTPUT (JSON only, no markdown):
 {
-  "date": "YYYY-MM-DD",
-  "totalSingleMatches": <số>,
-  "totalDoubleMatches": <số>,
+  "date": "${date}",
+  "totalSingleMatches": ${totalSingleMatches},
+  "totalDoubleMatches": ${totalDoubleMatches},
   "cafeResults": [
-    {
-      "playerLose": "<tên người thua>",
-      "playerWin": "<tên người thắng>",
-      "amount": <số cốc cafe>
-    }
+    {"playerLose": "name", "playerWin": "name", "amount": 0}
   ]
-}
-
-LƯU Ý:
-- Chỉ tính các trận đấu trong mảng matches được cung cấp
-- Đảm bảo tất cả các transaction đều được tính đúng
-- QUAN TRỌNG: Phải tính số dư cuối cùng (net balance) giữa các cặp người chơi
-  * Nếu A phải trả B 2 cốc và B phải trả A 1 cốc → Kết quả: A phải trả B 1 cốc (2 - 1 = 1)
-  * Nếu số dư = 0, không hiển thị cặp đó trong "cafeResults"
-- Sắp xếp "cafeResults" theo thứ tự alphabet của playerLose, sau đó playerWin
-- Nếu không có trận đấu nào, trả về mảng "cafeResults" rỗng và tổng số trận = 0
-- date phải là ngày của các trận đấu (lấy từ match.date, tất cả match phải cùng ngày)`;
+}`;
 }
 
 /**
- * Format matches data for AI processing
- * This function prepares the data from localStorage to send to AI
+ * MAIN WORKFLOW: Process matches and prepare for AI
  */
-export function formatMatchesForAI(
-  matches: MatchHistoryItem[]
-): MatchHistoryItem[] {
-  // Return matches as-is, already in correct format
-  return matches;
+export function prepareCafeCalculation(matches: MatchHistoryItem[]): {
+  balancePayload: Array<Record<string, number>>;
+  prompt: string;
+  metadata: {
+    date: string;
+    totalSingleMatches: number;
+    totalDoubleMatches: number;
+  };
+} {
+  const { balances, date, totalSingleMatches, totalDoubleMatches } = 
+    calculatePlayerBalances(matches);
+
+  // Convert to array format for payload
+  const balancePayload = Object.entries(balances).map(([name, balance]) => ({
+    [name]: balance
+  }));
+
+  const prompt = generateCafeCalculationPrompt(
+    balances,
+    date,
+    totalSingleMatches,
+    totalDoubleMatches
+  );
+
+  return {
+    balancePayload, // This is what you send to AI
+    prompt,
+    metadata: { date, totalSingleMatches, totalDoubleMatches }
+  };
 }
 
 /**
- * Validate AI response format
+ * Validate AI response
  */
 export function validateAIResponse(
   response: unknown
@@ -104,7 +201,6 @@ export function validateAIResponse(
 
   const result = response as Record<string, unknown>;
 
-  // Check required fields
   if (
     typeof result.date !== "string" ||
     typeof result.totalSingleMatches !== "number" ||
@@ -114,7 +210,6 @@ export function validateAIResponse(
     return false;
   }
 
-  // Validate each cafe transaction
   for (const transaction of result.cafeResults) {
     if (
       typeof transaction !== "object" ||
@@ -127,4 +222,13 @@ export function validateAIResponse(
   }
 
   return true;
+}
+
+/**
+ * Legacy function - kept for compatibility
+ */
+export function formatMatchesForAI(
+  matches: MatchHistoryItem[]
+): MatchHistoryItem[] {
+  return matches;
 }

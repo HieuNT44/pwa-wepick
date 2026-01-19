@@ -1,39 +1,30 @@
 "use client";
 
-import { CafeCalculationModal } from "@/components/cafe-calculation-modal";
 import { CreateMatchModal } from "@/components/create-match-modal";
+import { LoginRequiredModal } from "@/components/login-required-modal";
+import { SafeLink } from "@/components/safe-link";
 import { Button } from "@/components/ui/button";
 import { usePageView } from "@/hooks/use-analytics";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import type { CafeCalculationResult } from "@/lib/utils/cafe-calculation";
+import { deleteMatchById, getAllMatchesHistory } from "@/lib/firebase/matches";
+import { updateMultiplePlayerStats } from "@/lib/firebase/players";
 import { formatDateWithWeek } from "@/lib/utils/date";
-import {
-  clearTodayMatchHistory,
-  getIsMatchActive,
-  getTodayMatchHistory,
-  setIsMatchActive,
-} from "@/lib/utils/local-storage";
-import { callMitralAI } from "@/lib/utils/mitral-ai";
+import { getIsMatchActive, setIsMatchActive } from "@/lib/utils/local-storage";
 import type { Match } from "@/types/match";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 export default function MatchPage() {
+  const { user } = useAuth();
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
   const [isMatchActive, setIsMatchActiveState] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showCafeModal, setShowCafeModal] = useState(false);
-  const [cafeResult, setCafeResult] = useState<CafeCalculationResult | null>(
-    null
-  );
-  const [cafeLoading, setCafeLoading] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [displayDate, setDisplayDate] = useState<Date>(new Date());
   const { toast } = useToast();
-  const today = new Date();
-  const todayFormatted = formatDateWithWeek(today);
 
   // Check match active state on mount
   useEffect(() => {
@@ -43,29 +34,59 @@ export default function MatchPage() {
 
   usePageView("Match");
 
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.push("/login");
+  // Helper function to check auth and show modal if needed
+  const requireAuth = (): boolean => {
+    if (!user) {
+      setShowLoginModal(true);
+      return false;
     }
-  }, [user, authLoading, router]);
+    return true;
+  };
 
-  // Load matches from localStorage
-  const loadMatches = () => {
+  // Load matches from Firestore
+  const loadMatches = async () => {
     try {
       setLoading(true);
 
-      // Load from localStorage only
-      const localHistory = getTodayMatchHistory();
+      // Get today's date in YYYY-MM-DD format
+      const today = new Date();
+      const todayStr = today.toISOString().split("T")[0];
 
-      // Convert localStorage history to Match format
-      const localMatches: Match[] = localHistory.map((item) => {
+      // Load all matches from Firestore
+      const allHistory = await getAllMatchesHistory();
+
+      // Filter matches where createdAt is today
+      const todayHistory = allHistory.filter((item) => {
+        const createdAt = item.createdAt || item.completedAt;
+        if (!createdAt) return false;
+        
+        // Extract date part (YYYY-MM-DD) from createdAt ISO string
+        const matchDateStr = new Date(createdAt).toISOString().split("T")[0];
+        return matchDateStr === todayStr;
+      });
+
+      // Convert history to Match format
+      const matches: Match[] = todayHistory.map((item) => {
         // Parse score "11-8" to team scores
         const [score1, score2] = item.score.split("-").map(Number);
 
+        // Extract date and time from createdAt
+        const createdAtDate = item.createdAt 
+          ? new Date(item.createdAt) 
+          : (item.completedAt ? new Date(item.completedAt) : new Date());
+        
+        // Format date as YYYY-MM-DD
+        const dateStr = createdAtDate.toISOString().split("T")[0];
+        
+        // Format time as HH:mm
+        const hours = createdAtDate.getHours().toString().padStart(2, "0");
+        const minutes = createdAtDate.getMinutes().toString().padStart(2, "0");
+        const timeStr = `${hours}:${minutes}`;
+
         return {
           id: item.id,
-          date: item.date,
-          time: item.startTime,
+          date: dateStr, // Use date from createdAt
+          time: timeStr, // Use time from createdAt
           court: "Sân số 1", // Default court
           status: "completed" as const,
           team1: {
@@ -80,139 +101,98 @@ export default function MatchPage() {
             score: score2 || 0,
             name: item.team2.join(" & "),
           },
-          createdAt: item.completedAt,
+          createdAt: item.createdAt || item.completedAt,
         };
       });
 
-      // Sort by time (newest first)
-      localMatches.sort((a, b) => {
-        const timeA = a.time || "";
-        const timeB = b.time || "";
-        return timeB.localeCompare(timeA);
-      });
+      setMatches(matches);
 
-      setMatches(localMatches);
+      // Set display date to today
+      setDisplayDate(today);
     } catch (error) {
       console.error("Error loading matches:", error);
       setMatches([]);
+      setDisplayDate(new Date());
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (user) {
-      loadMatches();
-    } else {
-      setLoading(false);
-    }
-  }, [user]);
+    loadMatches();
+  }, []);
 
-  // Listen for storage changes to reload matches when new match is added
-  useEffect(() => {
-    if (typeof window === "undefined" || !user) return;
+  // Handle AI calculation - navigate to AI cafe page
+  const handleAICalculation = () => {
+    if (!requireAuth()) return;
 
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === "wepick_today_match_history") {
-        loadMatches();
-      }
-    };
-
-    // Also check periodically for same-tab changes (storage event only fires for other tabs)
-    const interval = setInterval(() => {
-      loadMatches();
-    }, 1000); // Check every second
-
-    window.addEventListener("storage", handleStorageChange);
-    return () => {
-      window.removeEventListener("storage", handleStorageChange);
-      clearInterval(interval);
-    };
-  }, [user]);
-
-  // Handle AI calculation
-  const handleAICalculation = async () => {
-    try {
-      // Get today's matches
-      const todayMatches = getTodayMatchHistory();
-
-      if (todayMatches.length === 0) {
-        toast({
-          title: "Không có dữ liệu",
-          description: "Chưa có trận đấu nào hôm nay để tính toán",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Show modal and start loading
-      setShowCafeModal(true);
-      setCafeLoading(true);
-      setCafeResult(null);
-
-      // Call AI
-      const result = await callMitralAI(todayMatches);
-      setCafeResult(result);
-    } catch (error) {
-      console.error("Error calculating cafe:", error);
+    // Check if there are any matches
+    if (matches.length === 0) {
       toast({
-        title: "Lỗi tính toán",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Không thể tính toán. Vui lòng thử lại.",
+        title: "Không có dữ liệu",
+        description: "Chưa có trận đấu nào để tính toán",
         variant: "destructive",
       });
-      setShowCafeModal(false);
-    } finally {
-      setCafeLoading(false);
+      return;
     }
+    
+    // Navigate to AI cafe calculation page
+    router.push("/ai-cafe");
   };
 
-  const handleRecalculate = () => {
-    handleAICalculation();
-  };
+  const handleDeleteMatch = async (matchId: string) => {
+    if (!requireAuth()) return;
 
-  const handleClearAllMatches = () => {
     if (
       !confirm(
-        "Bạn có chắc muốn xóa toàn bộ dữ liệu các trận đấu hôm nay? Hành động này không thể hoàn tác."
+        "Bạn có chắc muốn xóa trận đấu này? Hành động này không thể hoàn tác."
       )
     ) {
       return;
     }
 
     try {
-      clearTodayMatchHistory();
-      loadMatches();
+      // Delete match and get match data for stats rollback
+      const matchData = await deleteMatchById(matchId);
+
+      // Rollback player stats (decrease wins/losses)
+      if (matchData) {
+        try {
+          const statUpdates = [
+            ...(matchData.player_win || []).map((name) => ({
+              playerName: name,
+              incrementWins: -1,
+              incrementLosses: 0,
+            })),
+            ...(matchData.player_lose || []).map((name) => ({
+              playerName: name,
+              incrementWins: 0,
+              incrementLosses: -1,
+            })),
+          ];
+
+          await updateMultiplePlayerStats(statUpdates);
+        } catch (error) {
+          console.error("Error rolling back player stats:", error);
+          // Don't throw - match is already deleted
+        }
+      }
+
+      await loadMatches();
       toast({
         title: "Đã xóa",
-        description: "Đã xóa toàn bộ dữ liệu các trận đấu hôm nay",
+        description: "Đã xóa trận đấu",
       });
     } catch (error) {
-      console.error("Error clearing matches:", error);
+      console.error("Error deleting match:", error);
       toast({
         title: "Lỗi",
-        description: "Không thể xóa dữ liệu. Vui lòng thử lại.",
+        description: "Không thể xóa trận đấu. Vui lòng thử lại.",
         variant: "destructive",
       });
     }
   };
 
-  if (authLoading) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-background-light">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-text-secondary">Đang xác thực...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return null;
-  }
 
   const getStatusBadge = (status: Match["status"]) => {
     switch (status) {
@@ -254,43 +234,53 @@ export default function MatchPage() {
 
   const displayMatches = matches;
 
+  // Calculate match statistics
+  const singlesMatches = matches.filter(
+    (m) => !m.team1.player2Id && !m.team2.player2Id
+  ).length;
+  const doublesMatches = matches.filter(
+    (m) => m.team1.player2Id && m.team2.player2Id
+  ).length;
+
   return (
-    <div className="Match overflow-hidden min-h-screen w-full flex flex-col bg-background-light">
+    <div className="Match flex flex-col w-full border-x border-gray-100 relative bg-background text-text-main">
       {/* Header */}
-      <header className="h-[96px] w-full max-w-[600px] mx-auto fixed top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100">
-        <div className="p-4 flex flex-col gap-1">
-          <div className="flex items-center justify-between">
-            <h1 className="text-text-main text-2xl font-extrabold tracking-tight">
-              Trận Đấu Hôm Nay
-            </h1>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleClearAllMatches}
-                className="size-10 flex items-center justify-center rounded-full bg-gray-50 text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors"
-                title="Xóa toàn bộ dữ liệu"
-              >
-                <span className="material-symbols-outlined text-lg">
-                  delete_outline
-                </span>
-              </button>
-              <button className="size-10 flex items-center justify-center rounded-full bg-gray-50 text-gray-600">
-                <span className="material-symbols-outlined">
-                  calendar_today
-                </span>
-              </button>
-            </div>
+      <header className="px-5 pt-6 pb-4 sticky top-0 bg-background/80 backdrop-blur-lg z-30 shadow-sm border-b border-gray-100">
+        <div className="flex items-center gap-3">
+          <SafeLink
+            href="/home"
+            className="size-10 rounded-full bg-white shadow-soft flex items-center justify-center border border-gray-100 active:scale-95 transition-transform"
+          >
+            <span className="material-symbols-outlined text-text-muted">
+              arrow_back
+            </span>
+          </SafeLink>
+          {/* <div className="size-12 rounded-2xl bg-primary flex items-center justify-center shadow-lg border-2 border-primary/20">
+            <span className="material-symbols-outlined text-white text-2xl font-bold filled-icon">
+              sports_tennis
+            </span>
+          </div> */}
+          <div>
+            <h2 className="font-bold text-base text-text-main">
+              {formatDateWithWeek(displayDate)}
+            </h2>
           </div>
-          <p className="text-primary font-semibold text-sm">{todayFormatted}</p>
         </div>
       </header>
-      <div className="h-[96px]" />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col gap-5 px-4 mt-[96px] mb-[100px]">
+      <main className="flex-1 px-5 space-y-6 pb-32 bg-background-light pt-6">
+        {/* Match Statistics */}
+        {!loading && matches.length > 0 && (
+          <div className="text-sm text-text-muted">
+            Tổng số trận đấu: <span className="font-bold text-text-main">Đơn {singlesMatches}</span> | <span className="font-bold text-primary">Đôi {doublesMatches}</span>
+          </div>
+        )}
+
         {loading ? (
-          <div className="text-center py-8">
+          <div className="text-center py-8 h-screen">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-            <p className="text-text-secondary text-sm">Đang tải...</p>
+            <p className="text-text-muted text-sm">Đang tải...</p>
           </div>
         ) : displayMatches.length > 0 ? (
           displayMatches.map((match) => (
@@ -316,9 +306,15 @@ export default function MatchPage() {
 
               <div className="flex items-center justify-between mb-4">
                 {getStatusBadge(match.status)}
-                <span className="material-symbols-outlined text-primary">
-                  {getStatusIcon(match.status)}
-                </span>
+                <button
+                  onClick={() => handleDeleteMatch(match.id || "")}
+                  className="size-8 flex items-center justify-center rounded-full bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                  title="Xóa trận đấu"
+                >
+                  <span className="material-symbols-outlined text-sm">
+                    delete_outline
+                  </span>
+                </button>
               </div>
 
               <div className="flex items-center justify-between gap-2">
@@ -445,22 +441,24 @@ export default function MatchPage() {
             </div>
           ))
         ) : (
-          <div className="text-center py-8">
-            <p className="text-text-secondary text-sm">
+          <div className="text-center h-screen py-8">
+            <p className="text-text-muted text-sm">
               Chưa có trận đấu nào hôm nay
             </p>
           </div>
         )}
-      </div>
-      <div className="h-[100px]" />
+      </main>
 
-      {/* Footer */}
-      <footer className="fixed w-full  max-w-[600px] bottom-0 h-[100px] left-0 right-0 mx-auto p-3 bg-white/90 backdrop-blur-xl border-t border-gray-100">
+      {/* Action Buttons Footer */}
+      <footer className="fixed bottom-0 left-0 right-0 w-full max-w-[600px] mx-auto bg-white/90 backdrop-blur-lg border-t border-gray-100 px-5 py-4 z-40">
         <div className="flex gap-2 w-full">
           <Button
-            className="flex-1 bg-white border-2 border-primary text-primary py-3 rounded-xl font-bold flex flex-col items-center justify-center gap-1 active:scale-95 transition-all shadow-sm h-auto"
+            variant="outline"
+            className="flex-1 bg-white border-2 border-primary text-primary hover:bg-white hover:text-primary py-3 rounded-xl font-bold flex flex-col items-center justify-center gap-1 active:scale-95 transition-all shadow-sm h-auto focus-visible:ring-0 focus-visible:ring-offset-0"
             onClick={() => {
-              setShowCreateModal(true);
+              if (requireAuth()) {
+                setShowCreateModal(true);
+              }
             }}
           >
             <span className="material-symbols-outlined text-lg">
@@ -492,16 +490,10 @@ export default function MatchPage() {
         }}
       />
 
-      {/* Cafe Calculation Modal */}
-      <CafeCalculationModal
-        open={showCafeModal}
-        onClose={() => {
-          setShowCafeModal(false);
-          setCafeResult(null);
-        }}
-        result={cafeResult}
-        loading={cafeLoading}
-        onRecalculate={handleRecalculate}
+      {/* Login Required Modal */}
+      <LoginRequiredModal
+        open={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
       />
     </div>
   );

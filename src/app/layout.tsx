@@ -1,13 +1,13 @@
+import { MatchGuard } from "@/components/match-guard";
+import { OfflineIndicator } from "@/components/offline-indicator";
+import { ServiceWorkerRegister } from "@/components/service-worker-register";
+import { ThemeProvider } from "@/components/theme-provider";
+import { Toaster } from "@/components/ui/toaster";
 import type { Metadata } from "next";
 import { Lexend } from "next/font/google";
 import "./globals.css";
-import { ThemeProvider } from "@/components/theme-provider";
-import { Toaster } from "@/components/ui/toaster";
-import { OfflineIndicator } from "@/components/offline-indicator";
-import { ServiceWorkerRegister } from "@/components/service-worker-register";
-import { MatchGuard } from "@/components/match-guard";
 
-const lexend = Lexend({ 
+const lexend = Lexend({
   subsets: ["latin"],
   variable: "--font-lexend",
   display: "swap",
@@ -46,8 +46,10 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className={`${lexend.variable} font-display bg-gray-100`}>
-        <div className="max-w-[600px] mx-auto min-h-screen bg-background shadow-lg">
+      <body
+        className={`${lexend.variable} w-screen h-screen font-display bg-gray-100 flex flex-col items-center`}
+      >
+        <div className="w-full max-w-[600px] h-full flex flex-col bg-background shadow-lg">
           <ThemeProvider
             attribute="class"
             defaultTheme="system"
@@ -65,4 +67,3 @@ export default function RootLayout({
     </html>
   );
 }
-

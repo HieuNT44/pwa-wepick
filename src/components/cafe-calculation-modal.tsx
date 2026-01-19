@@ -3,7 +3,6 @@
 import usersData from "@/data/users-example.json";
 import { useToast } from "@/hooks/use-toast";
 import type { CafeCalculationResult } from "@/lib/utils/cafe-calculation";
-import { formatDateWithWeek } from "@/lib/utils/date";
 import { saveCafeCalculation } from "@/lib/utils/local-storage";
 import type { User } from "@/types/user";
 import { useEffect, useState } from "react";
@@ -72,121 +71,68 @@ export function CafeCalculationModal({
     return "";
   };
 
-  // Get today's matches for stats
-  const totalMatches = result
-    ? result.totalSingleMatches + result.totalDoubleMatches
+  // Calculate total cafe cups to be exchanged
+  const totalCafeCups = result
+    ? result.cafeResults.reduce((sum, item) => sum + item.amount, 0)
     : 0;
-  const uniquePlayers = result
-    ? new Set([
-        ...result.cafeResults.map((r) => r.playerLose),
-        ...result.cafeResults.map((r) => r.playerWin),
-      ]).size
-    : 0;
-
-  // Find player with most losses (Kẻ 'bao' sân)
-  const playerLosses = result
-    ? result.cafeResults.reduce((acc, r) => {
-        acc[r.playerLose] = (acc[r.playerLose] || 0) + r.amount;
-        return acc;
-      }, {} as Record<string, number>)
-    : {};
-  const topLoser = Object.entries(playerLosses).sort(
-    ([, a], [, b]) => b - a
-  )[0];
 
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 bg-background-light dark:bg-background-dark overflow-y-auto">
-      <div className="relative flex h-auto min-h-screen w-full flex-col overflow-x-hidden max-w-[430px] mx-auto shadow-2xl border-x border-primary/10 bg-background-light dark:bg-background-dark">
+      <div className="relative flex h-auto w-full flex-col overflow-x-hidden max-w-[430px] mx-auto shadow-2xl border-x border-primary/10 bg-background-light dark:bg-background-dark">
         {/* TopAppBar */}
-        <div className="sticky top-0 z-50 flex items-center bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md p-4 pb-2 justify-between">
+        <div className="sticky top-0 z-50 flex items-center bg-white/80 dark:bg-background-dark/80 backdrop-blur-md p-4 justify-between border-b border-gray-100 dark:border-gray-800">
           <button
             onClick={onClose}
-            className="text-primary flex size-12 shrink-0 items-center justify-start"
+            className="text-[#121717] dark:text-white flex size-10 items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
-            <span className="material-symbols-outlined cursor-pointer">
-              arrow_back_ios
-            </span>
+            <span className="material-symbols-outlined">arrow_back</span>
           </button>
-          <h2 className="text-slate-900 dark:text-white text-lg font-bold leading-tight tracking-tight flex-1 text-center">
-            🤖 AI Tính Toán Cà Phê
+          <h2 className="text-[#121717] dark:text-white text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center pr-10">
+            🤖 AI Phân Chia Cà Phê
           </h2>
-          <div className="flex w-12 items-center justify-end">
-            <button className="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-12 bg-transparent text-primary gap-2 text-base font-bold leading-normal p-0">
-              <span className="material-symbols-outlined">more_horiz</span>
-            </button>
-          </div>
         </div>
 
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-24">
+          <div className="flex flex-col items-center justify-center  h-screen">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
             <p className="text-text-secondary">Đang tính toán...</p>
           </div>
         ) : result ? (
           <>
-            {/* Session Summary Card */}
+            {/* Total Cafe Summary Card */}
             <div className="p-4">
-              <div className="flex items-stretch justify-between gap-4 rounded-xl bg-primary/10 p-4 border border-primary/20 shadow-lg">
-                <div className="flex flex-col gap-1 flex-[2_2_0px]">
-                  <p className="text-slate-900 dark:text-white text-lg font-bold leading-tight">
-                    Pickleball Club Sài Gòn
+              <div className="flex flex-col gap-2 rounded-2xl p-6 bg-primary/10 border border-primary/20">
+                <p className="text-[#121717] dark:text-white/80 text-sm font-medium uppercase tracking-wider">
+                  Tổng kết phiên hôm nay
+                </p>
+                <div className="flex items-center justify-between">
+                  <p className="text-[#121717] dark:text-white tracking-light text-4xl font-bold leading-tight">
+                    {totalCafeCups} ☕
                   </p>
-                  <p className="text-slate-500 dark:text-[#a2b2b3] text-sm font-normal leading-normal">
-                    {formatDateWithWeek(new Date(result.date))} • {totalMatches}{" "}
-                    Trận • {uniquePlayers} Thành viên
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Quick Stats Section */}
-            {topLoser && (
-              <div className="px-4 py-2">
-                <div className="flex gap-3 overflow-x-auto pb-2">
-                  <div className="min-w-[160px] flex flex-col gap-2 p-3 rounded-xl bg-white dark:bg-[#1e2424] border border-slate-200 dark:border-slate-800">
-                    <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-amber-500 text-sm">
-                        sentiment_dissatisfied
-                      </span>
-                      <p className="text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase">
-                        Kẻ &apos;bao&apos; sân
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="size-8 rounded-full bg-cover bg-center border border-primary/50"
-                        style={{
-                          backgroundImage: `url('${getPlayerAvatar(
-                            topLoser[0]
-                          )}')`,
-                        }}
-                      ></div>
-                      <p className="text-sm font-bold truncate">
-                        {getPlayerNickname(topLoser[0])}
-                      </p>
-                    </div>
+                  <div className="bg-primary text-white p-2 rounded-full flex items-center justify-center">
+                    <span className="material-symbols-outlined text-2xl">analytics</span>
                   </div>
                 </div>
               </div>
-            )}
+            </div>
 
             {/* Section Header */}
-            <div className="flex items-center justify-between px-4 pb-2 pt-4">
-              <h3 className="text-slate-900 dark:text-white text-lg font-bold leading-tight tracking-tight">
-                Chi tiết chuyển ly ☕
+            <div className="px-4 pt-4 pb-2 flex items-center justify-between">
+              <h3 className="text-[#121717] dark:text-white text-lg font-bold leading-tight tracking-[-0.015em]">
+                Chi tiết phân chia
               </h3>
-              <span className="text-primary text-xs font-medium px-2 py-1 bg-primary/10 rounded-full">
-                AI Đã tính toán
+              <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-1 rounded-full uppercase">
+                AI Optimized
               </span>
             </div>
 
-            {/* AI Transaction List */}
-            <div className="flex flex-col gap-1 px-4 relative overflow-hidden">
+            {/* Transaction List */}
+            <div className="flex flex-col gap-3 px-4">
               {result.cafeResults.length === 0 ? (
-                <div className="text-center py-8 bg-white dark:bg-[#1e2424] rounded-xl border border-slate-100 dark:border-slate-800">
-                  <p className="text-text-secondary">
+                <div className="text-center py-8 bg-white dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-800">
+                  <p className="text-[#668385] dark:text-gray-400">
                     Không có kết quả cafe nào
                   </p>
                 </div>
@@ -197,80 +143,91 @@ export function CafeCalculationModal({
                   return (
                     <div
                       key={index}
-                      className="flex items-center gap-4 bg-white dark:bg-[#1e2424] px-4 min-h-[80px] py-3 justify-between rounded-xl border border-slate-100 dark:border-slate-800 relative group overflow-hidden"
+                      className="flex items-center gap-3 bg-white dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm"
                     >
-                      <div className="flex items-center gap-3 z-10">
-                        <div className="flex -space-x-3 items-center">
+                      <div className="flex items-center gap-3 flex-1">
+                        {/* <div className="relative">
                           {loseAvatar ? (
                             <div
-                              className="bg-center bg-no-repeat aspect-square bg-cover rounded-full h-12 w-12 border-2 border-background-dark"
+                              className="bg-center bg-no-repeat aspect-square bg-cover rounded-full h-12 w-12 border-2 border-white dark:border-gray-700 shadow-sm"
                               style={{
                                 backgroundImage: `url('${loseAvatar}')`,
                               }}
                             ></div>
                           ) : (
-                            <div className="bg-primary/10 rounded-full h-12 w-12 border-2 border-background-dark flex items-center justify-center">
+                            <div className="bg-primary/10 rounded-full h-12 w-12 border-2 border-white dark:border-gray-700 shadow-sm flex items-center justify-center">
                               <span className="text-primary font-bold text-sm">
                                 {getPlayerNickname(item.playerLose).charAt(0)}
                               </span>
                             </div>
                           )}
-                          <div className="flex size-6 items-center justify-center bg-primary rounded-full z-20 border-2 border-background-dark">
-                            <span className="material-symbols-outlined text-white text-[14px]">
-                              trending_flat
-                            </span>
-                          </div>
+                          <span className="absolute -bottom-1 -right-1 bg-red-500 w-4 h-4 rounded-full border-2 border-white dark:border-gray-800"></span>
+                        </div> */}
+                        <div className="flex flex-col flex-1">
+                          <p className="text-[#121717] dark:text-white text-sm font-bold leading-tight line-clamp-1">
+                            {getPlayerNickname(item.playerLose)}
+                          </p>
+                          <p className="text-[#668385] dark:text-gray-400 text-[10px] font-medium leading-normal">
+                            Người trả
+                          </p>
+                        </div>
+                        <div className="flex items-center justify-center text-primary">
+                          <span
+                            className="material-symbols-outlined text-2xl"
+                            style={{ color: "#36cbd3" }}
+                          >
+                            trending_flat
+                          </span>
+                        </div>
+                        <div className="flex flex-col flex-1 items-end">
+                          <p className="text-[#121717] dark:text-white text-sm font-bold leading-tight line-clamp-1">
+                            {getPlayerNickname(item.playerWin)}
+                          </p>
+                          <p className="text-[#668385] dark:text-gray-400 text-[10px] font-medium leading-normal text-right">
+                            Người nhận
+                          </p>
+                        </div>
+                        {/* <div className="relative">
                           {winAvatar ? (
                             <div
-                              className="bg-center bg-no-repeat aspect-square bg-cover rounded-full h-12 w-12 border-2 border-background-dark"
+                              className="bg-center bg-no-repeat aspect-square bg-cover rounded-full h-12 w-12 border-2 border-white dark:border-gray-700 shadow-sm"
                               style={{ backgroundImage: `url('${winAvatar}')` }}
                             ></div>
                           ) : (
-                            <div className="bg-primary/10 rounded-full h-12 w-12 border-2 border-background-dark flex items-center justify-center">
+                            <div className="bg-primary/10 rounded-full h-12 w-12 border-2 border-white dark:border-gray-700 shadow-sm flex items-center justify-center">
                               <span className="text-primary font-bold text-sm">
                                 {getPlayerNickname(item.playerWin).charAt(0)}
                               </span>
                             </div>
                           )}
-                        </div>
-                        <div className="flex flex-col justify-center">
-                          <p className="text-slate-900 dark:text-white text-sm font-bold leading-normal line-clamp-1">
-                            {getPlayerNickname(item.playerLose)} →{" "}
-                            {getPlayerNickname(item.playerWin)}
-                          </p>
-                          <p className="text-primary text-sm font-bold leading-normal">
-                            {item.amount} ly cà phê ☕
-                          </p>
-                        </div>
+                          <span className="absolute -bottom-1 -right-1 bg-green-500 w-4 h-4 rounded-full border-2 border-white dark:border-gray-800"></span>
+                        </div> */}
                       </div>
-                      <div className="shrink-0 z-10">
-                        <span className="material-symbols-outlined text-success text-sm">
-                          check_circle
-                        </span>
+                      <div className="shrink-0 bg-background-light dark:bg-gray-700 px-3 py-2 rounded-xl">
+                        <p className="text-[#121717] dark:text-white text-sm font-bold leading-tight">
+                          {item.amount} ☕
+                        </p>
                       </div>
                     </div>
                   );
                 })
               )}
             </div>
-            <div className="h-[15px]" />
-
-            {/* Action Buttons Container */}
-            <div className="w-full left-0 right-0 max-w-[600px] mx-auto p-4 bg-[#ffffff] dark:bg-background-dark pt-10 border-t border-slate-200 dark:border-slate-800">
+            {/* Sticky Bottom Actions */}
+            <div className="w-full px-4 py-4 ">
               <div className="flex flex-col gap-3">
                 <button
                   onClick={handleSave}
-                  className="w-full h-14 bg-primary text-slate-900 rounded-full font-bold text-base shadow-lg shadow-primary/20 flex items-center justify-center gap-2 hover:brightness-110 active:scale-95 transition-all"
+                  className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-4 rounded-full shadow-lg shadow-primary/25 transition-all active:scale-95 flex items-center justify-center gap-2"
                 >
-                  <span className="material-symbols-outlined">verified</span>
+                  <span className="material-symbols-outlined">check_circle</span>
                   Xác nhận & Lưu
                 </button>
                 <button
                   onClick={onRecalculate}
-                  className="w-full h-14 bg-white/5 dark:bg-white/10 text-slate-900 dark:text-white border border-slate-200 dark:border-white/20 rounded-full font-bold text-base flex items-center justify-center gap-2 hover:bg-white/20 transition-all"
+                  className="w-full bg-white dark:bg-transparent border-2 border-primary text-primary font-bold py-4 rounded-full transition-all active:scale-95 flex items-center justify-center gap-2"
                 >
-                  <span className="material-symbols-outlined">refresh</span>
-                  Tính lại
+                  Tính sai rồi, tính lại đi!
                 </button>
               </div>
             </div>
