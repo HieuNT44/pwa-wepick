@@ -2,15 +2,15 @@
  * Firebase functions for cafe calculation results
  */
 
+import type { CafeCalculationResult } from "@/lib/utils/cafe-calculation";
 import {
   collection,
-  doc,
-  setDoc,
-  getDocs,
   deleteDoc,
+  doc,
+  getDocs,
+  setDoc,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import type { CafeCalculationResult } from "@/lib/utils/cafe-calculation";
 
 const COLLECTION_NAME = "cafe_calculations";
 
@@ -83,8 +83,8 @@ export const getCafeCalculationByDate = async (
       .map((doc) => ({
         id: doc.id,
         ...doc.data(),
-      }))
-      .filter((data) => data.date === date) as CafeCalculationDocument[];
+      }) as CafeCalculationDocument)
+      .filter((data) => data.date === date);
     
     if (matchingDocs.length === 0) {
       return null;

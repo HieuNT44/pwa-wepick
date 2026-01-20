@@ -171,11 +171,20 @@ export default function HomeDashboard() {
       playerBalances[item.playerLose] = (playerBalances[item.playerLose] || 0) - item.amount;
     });
 
+    // Helper function to get player info (defined inside useMemo to avoid dependency)
+    const getPlayerInfoLocal = (playerName: string) => {
+      const player = players.find((p) => p.name === playerName);
+      return {
+        name: player?.nickname || player?.name || playerName,
+        avatar: player?.avatar || null,
+      };
+    };
+
     // Separate winners and debtors
     const winners = Object.entries(playerBalances)
       .filter(([_, balance]) => balance > 0)
       .map(([playerName, balance]) => {
-        const playerInfo = getPlayerInfo(playerName);
+        const playerInfo = getPlayerInfoLocal(playerName);
         return {
           playerName,
           displayName: playerInfo.name,
@@ -188,7 +197,7 @@ export default function HomeDashboard() {
     const debtors = Object.entries(playerBalances)
       .filter(([_, balance]) => balance < 0)
       .map(([playerName, balance]) => {
-        const playerInfo = getPlayerInfo(playerName);
+        const playerInfo = getPlayerInfoLocal(playerName);
         return {
           playerName,
           displayName: playerInfo.name,
@@ -251,7 +260,7 @@ export default function HomeDashboard() {
                   TOMOSIA PICKLEBALL CLUB
                 </h1>
                 <p className="text-primary font-medium text-sm">
-                  Nhận mọi kèo Cà Phê!
+                  Nhà cái Cafe đến từ Lê Đức Thọ
                 </p>
               </div>
             </div>

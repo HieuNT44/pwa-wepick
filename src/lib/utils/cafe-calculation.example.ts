@@ -6,8 +6,7 @@
 
 import { getTodayMatchHistory } from "./local-storage";
 import {
-  generateCafeCalculationPrompt,
-  formatMatchesForAI,
+  prepareCafeCalculation,
   validateAIResponse,
   type CafeCalculationResult,
 } from "./cafe-calculation";
@@ -19,11 +18,8 @@ export function exampleGeneratePrompt() {
   // 1. Get today's matches from localStorage
   const matches = getTodayMatchHistory();
 
-  // 2. Format matches for AI (if needed)
-  const formattedMatches = formatMatchesForAI(matches);
-
-  // 3. Generate prompt
-  const prompt = generateCafeCalculationPrompt(formattedMatches);
+  // 2. Prepare cafe calculation (calculates balances and generates prompt)
+  const { prompt, balancePayload, metadata } = prepareCafeCalculation(matches);
 
   console.log("=== PROMPT FOR AI ===");
   console.log(prompt);
@@ -77,8 +73,8 @@ export async function exampleCompleteFlow() {
     return null;
   }
 
-  // Step 2: Generate prompt
-  const prompt = generateCafeCalculationPrompt(matches);
+  // Step 2: Prepare cafe calculation and generate prompt
+  const { prompt } = prepareCafeCalculation(matches);
 
   // Step 3: Send to AI (replace with your actual AI API call)
   // const aiResponse = await callAIAPI(prompt);

@@ -272,17 +272,14 @@ export const getMatchesByDateRange = async (
   endDate: string
 ): Promise<MatchHistoryItem[]> => {
   try {
-    const start = new Date(startDate);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(endDate);
-    end.setHours(23, 59, 59, 999);
+    // Format dates to YYYY-MM-DD for comparison
+    const startDateStr = startDate.split("T")[0];
+    const endDateStr = endDate.split("T")[0];
 
     // Get all matches and filter in client-side to avoid composite index
     const allMatches = await getAllMatchesHistory();
     
     // Filter by date range using createdAt - compare date strings (YYYY-MM-DD) only
-    const targetDateStr = date.split("T")[0]; // Ensure YYYY-MM-DD format
-    
     return allMatches.filter((match) => {
       // Use createdAt for filtering
       const matchCreatedAt = match.createdAt;
@@ -290,7 +287,7 @@ export const getMatchesByDateRange = async (
       
       // Extract date part (YYYY-MM-DD) from createdAt ISO string
       const matchDateStr = new Date(matchCreatedAt).toISOString().split("T")[0];
-      return matchDateStr === targetDateStr;
+      return matchDateStr >= startDateStr && matchDateStr <= endDateStr;
     });
   } catch (error) {
     console.error("Error getting matches by date range:", error);
